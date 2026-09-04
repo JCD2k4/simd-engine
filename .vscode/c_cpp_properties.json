@@ -1,0 +1,26 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "configurationProvider": "ms-vscode.makefile-tools",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${env:HOME}/.local/include",
+                "${env:HOME}/.local/gcc-15/include/c++/15",
+                "${env:HOME}/.local/gcc-15/include/c++/15/x86_64-linux-gnu",
+                "${env:HOME}/.local/gcc-15/lib/gcc/x86_64-linux-gnu/15/include"
+            ],
+            "defines": [
+                "IDE_INTELLISENSE"
+            ],
+            "compilerPath": "${env:HOME}/.local/gcc-15/bin/g++",
+            "compilerArgs": [
+                "-march=native"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++23",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

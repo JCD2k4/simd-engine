@@ -1,0 +1,16 @@
+{
+    // Makefile Tools drives IntelliSense here: it runs `make --dry-run` and feeds
+    // cpptools the real compile line for each file. These extra switches add
+    // -DIDE_INTELLISENSE to that dry run only, so the sources take their plain
+    // #include path in the editor while the real build still uses modules.
+    // The first three are the extension's defaults and must be repeated.
+    "makefile.dryrunSwitches": [
+        "--always-make",
+        "--keep-going",
+        "--print-directory",
+        "IDE_CXXFLAGS=-DIDE_INTELLISENSE"
+    ],
+    "files.associations": {
+        "*.cppm": "cpp"
+    }
+}
