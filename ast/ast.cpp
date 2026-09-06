@@ -48,6 +48,9 @@ struct SelectStatement{
 };
 
 
+struct Parser{
+
+};
 
 struct ASTEvaluator{
     void operator()(const std::unique_ptr<SelectStatement>& query){

@@ -1,0 +1,44 @@
+"SELECT name, age FROM employees WHERE age > 18 AND department = 'Engineering' GROUP BY department HAVING COUNT(*) > 10 ORDER BY age DESC;"
+
+<statement>           ::= <select_statement>
+
+<select_statement>    ::= "SELECT" <select_list> <from_clause>
+                           <where_clause>? <group_by_clause>? <order_by_clause>? ";"?
+
+<select_list>         ::= "*" | <column_list>
+<column_list>         ::= <column_name> | <column_name> "," <column_list>
+
+<from_clause>         ::= "FROM" <table_list>
+<table_list>          ::= <table_name> | <table_name> "," <table_list>
+
+<where_clause>        ::= "WHERE" <condition_list>
+<condition_list>      ::= <condition>
+                        | <condition> "AND" <condition_list>
+                        | <condition> "OR" <condition_list>
+<condition>           ::= <column_name> <comparison_op> <value>
+                        | <value> <comparison_op> <column_name>
+
+<group_by_clause>     ::= "GROUP BY" <column_list>
+
+<order_by_clause>     ::= "ORDER BY" <order_list>
+<order_list>          ::= <order_item> | <order_item> "," <order_list>
+<order_item>          ::= <column_name> <order_direction>?
+<order_direction>     ::= "ASC" | "DESC"
+
+<comparison_op>       ::= ">" | "<" | "=" | ">=" | "<=" | "!="
+
+<value>               ::= <number> | <quoted_string>
+<quoted_string>       ::= "'" <string> "'"
+
+<table_name>          ::= <identifier>
+<column_name>         ::= <identifier>
+
+<identifier>          ::= <letter> <identifier_char>*
+<identifier_char>     ::= <letter> | <digit>
+
+<string>              ::= <character>*
+<character>           ::= <letter> | <digit> | " " | <other_safe_char>
+
+<number>              ::= <digit>+
+<digit>               ::= [0-9]
+<letter>              ::= [a-zA-Z]
