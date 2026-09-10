@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 #include <unordered_set>
-
+#include <unordered_map>
 
 
 
@@ -26,6 +26,8 @@ enum class Operator {
     Greater,
     Less_equal,
     Greater_equal,
+    Equal,
+    Not_Equal,
     And,
     Or
 };
@@ -54,12 +56,12 @@ struct SelectStatement{
     std::vector<std::unique_ptr<ASTNode>> select_list; //SELECT
     std::vector<std::unique_ptr<ASTNode>> table_list; //FROM
     std::optional<std::vector<BinaryExpr>> where; //Where clause
-    std::vector<ASTNode> group_by;
+    std::vector<std::unique_ptr<ASTNode>> group_by;
     std::optional<ASTNode> having;
     std::vector<std::pair<ASTNode, bool>> order_by; //Expression + asc/desc
 };
 
-struct ASTEvaluator{
+struct ASTEvaluator {
     void operator()(const NumberExpr& n) {
         std::cout << "Number: " << n.value << "\n";
     }
@@ -68,23 +70,49 @@ struct ASTEvaluator{
         std::cout << "String: " << s.value << "\n";
     }
 
-    void operator()(const std::unique_ptr<BinaryExpr>& b) {
-        //std::cout << "Binary op: " << b->op << "\n";
-        //std::visit(*this, *b->left);
-        //std::visit(*this, *b->right);
+    std::string OperatorToString(Operator op) {
+        switch (op) {
+            case Operator::Greater:       return ">";
+            case Operator::Less:          return "<";
+            case Operator::Equal:         return "=";
+            case Operator::Greater_equal: return ">=";
+            case Operator::Less_equal:    return "<=";
+            case Operator::Not_Equal:     return "!=";
+        }
+        return "?"; // unreachable if all enumerators are handled
     }
 
+    void operator()(const BinaryExpr& b) {
+        std::cout << "(";
+        std::visit(*this, b.left);
+        std::cout << " " << OperatorToString(b.op) << " ";
+        std::visit(*this, b.right);
+        std::cout << ")";
+    }
+
+    void operator()(const std::unique_ptr<BinaryExpr>& b) {
+        if (b) {
+            (*this)(*b);
+        }
+    }
+
+    void operator()(const std::vector<BinaryExpr>& w) {
+        for (const auto& expr : w) {
+            (*this)(expr);
+        }
+    }
 
     void evaluateList(const std::vector<std::unique_ptr<ASTNode>>& list) {
         for (const auto& nodePtr : list) {
             std::visit(*this, *nodePtr);
         }
     }
-    
 
-    void parser(std::vector<std::string>& tokens, std::unique_ptr<SelectStatement>& tree){
+    void parser(std::vector<std::string>& tokens, std::unique_ptr<SelectStatement>& tree) {
         
     }
+    //constexpr std::vector<BinaryExpr> &std::optional<std::vector<BinaryExpr>>::value() &
+
 };
 
 
@@ -142,9 +170,8 @@ struct SimpleSQLParser{
     
     void SelectParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
 
-        auto it = tokens.cbegin() + 1;
         std::unique_ptr<ASTNode> current_column;
-        for (; it != tokens.cend(); ++it){
+        for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
             current_column = std::make_unique<ASTNode>(StringExpr{*it});
             statement->select_list.push_back(std::move(current_column));
         }
@@ -157,24 +184,51 @@ struct SimpleSQLParser{
         std::unique_ptr<ASTNode> current_table;
         for (; it != tokens.cend(); ++it){
             current_table = std::make_unique<ASTNode>(StringExpr{*it});
-            statement->table_list.push_back(std::move(current_table));
+            statement->group_by.push_back(std::move(current_table));
         }
 
     }
 
-    void WhereParse(SelectStatement* statement, std::vector<std::string>& tokens){
-
+    void WhereParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+        //AS OF 9-10 THIS IS NOT DONE
         //This one will be a little different
-        /*auto it = tokens.cbegin() + 1;
-        std::unique_ptr<ASTNode> current_table;
-        for (it; it != tokens.cend(); ++it){
-            current_table = std::make_unique<ASTNode>(StringExpr{*it});
-            statement->table_list.push_back(current_table);
-        }*/
+
+        statement->where.emplace(); //Emplace since I now know it must exist
+        const std::unordered_map<std::string, Operator> c_op = {
+            {">", Operator::Greater}, 
+            {"<", Operator::Less}, 
+            {"=", Operator::Equal}, 
+            {">=", Operator::Greater_equal}, 
+            {"<=", Operator::Less_equal}, 
+            {"!=", Operator::Not_Equal}
+        };
+        std::vector<BinaryExpr> expressions;
+        std::string current_op;
+        for (auto it = tokens.cbegin(); it != tokens.cend(); ++it){
+            if (c_op.find(*it) != c_op.end()){
+                expressions.push_back(BinaryExpr{
+                    c_op.at(*it),
+                    ASTNode{StringExpr{*(it - 1)}},
+                    ASTNode{StringExpr{*(it + 1)}},
+                });
+            }
+            /*if (*it == "AND" || *it == "OR"){
+                
+            }*/
+        }
+        statement->where = std::move(expressions);
+
         
     }
 
-    void GroupByParse(){}
+    void GroupByParse(SelectStatement* statement, std::vector<std::string>& tokens){
+        
+        std::unique_ptr<ASTNode> current_column;
+        for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
+            current_column = std::make_unique<ASTNode>(StringExpr{*it});
+            statement->select_list.push_back(std::move(current_column));
+        }
+    }
     void HavingParse(){}
     void OrderByParse(){}
 
@@ -222,7 +276,7 @@ struct SimpleSQLParser{
 
 
         //Testing evaluator
-        //ASTEvaluator evaluator;
+        ASTEvaluator evaluator;
 
         //SELECT CLAUSE
         SelectParse(result, groups[0]);
@@ -233,7 +287,10 @@ struct SimpleSQLParser{
         
         //evaluator.evaluateList(result->table_list);
         //WHERE CLAUSE CHECK
-        
+        WhereParse(result, groups[2]);
+        //std::cout << "dfsahfdsdfhgs\n";
+        //evaluator(result->where.value());
+
         return result;
     }
 };
