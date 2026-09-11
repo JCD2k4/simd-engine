@@ -1,11 +1,25 @@
-CXX=g++
-CXXFLAGS=-Wall -O2 -std=c++17
+CXX = g++
+CXXFLAGS = -Wall -O2 -std=c++17
 
-ast: ast.cpp
-	$(CXX) $(CXXFLAGS) ast.cpp -o ast
+# Source files and target binaries
+SRCS = ast.cpp SimpleSQLParser.cpp
+OBJS = $(SRCS:.cpp=.o)
+TARGET = ast
+
+.PHONY: all clean run
+
+all: $(TARGET)
+
+# Link object files into final executable
+$(TARGET): $(OBJS)
+	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
+
+# Compile individual .cpp files into .o object files
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f ast
+	rm -f $(OBJS) $(TARGET)
 
-run: ast
-	./ast
+run: $(TARGET)
+	./$(TARGET)
