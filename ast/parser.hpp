@@ -102,7 +102,9 @@ struct SimpleSQLParser{
         
     }
 
-    void GroupByParse(SelectStatement* statement, std::vector<std::string>& tokens){
+
+    //"SELECT name, age FROM employees WHERE age > 18 AND department = 'Engineering' GROUP BY department HAVING COUNT(*) > 10 ORDER BY age DESC;"
+    void GroupByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
         
         std::unique_ptr<ASTNode> current_column;
         for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
@@ -110,8 +112,38 @@ struct SimpleSQLParser{
             statement->select_list.push_back(std::move(current_column));
         }
     }
-    void HavingParse(){}
-    void OrderByParse(){}
+    void HavingParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+
+        const std::unordered_map<std::string, Operator> c_op = {
+            {">", Operator::Greater}, 
+            {"<", Operator::Less}, 
+            {"=", Operator::Equal}, 
+            {">=", Operator::Greater_equal}, 
+            {"<=", Operator::Less_equal}, 
+            {"!=", Operator::Not_Equal}
+        };
+        std::vector<std::unique_ptr<ASTNode>> expressions;
+
+        for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
+            if (c_op.find(*it) != c_op.end()){
+                std::unique_ptr<ASTNode> current_expression = std::make_unique<ASTNode>(
+                    std::make_unique<BinaryExpr>(
+                        c_op.at(*it),
+                        ASTNode{StringExpr{*(it - 1)}},
+                        ASTNode{StringExpr{*(it + 1)}}
+                    )
+                );
+                expressions.push_back(std::move(current_expression));
+            }
+        }
+        statement->having = std::move(expressions);       
+    }
+    void OrderByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+        ASTNode column = StringExpr{tokens[1]};
+        bool asc = tokens[2] == "ASC";
+        
+        statement->order_by = { std::move(column), asc };;
+    }
 
 
     std::unique_ptr<SelectStatement> Parse(std::vector<std::string>& tokens){
@@ -157,7 +189,7 @@ struct SimpleSQLParser{
 
 
         //Testing evaluator
-        ASTEvaluator evaluator;
+        //ASTEvaluator evaluator;
 
         //SELECT CLAUSE
         SelectParse(result, groups[0]);
@@ -168,6 +200,14 @@ struct SimpleSQLParser{
         //WHERE CLAUSE CHECK
         WhereParse(result, groups[2]);
 
+        //GROUP BY CLAUSE CHECK
+        GroupByParse(result, groups[3]);
+
+        //ORDER BY CLAUSE CHECK;
+        GroupByParse(result, groups[4]);
+
+
         return result;
     }
 };
+//"SELECT name, age FROM employees WHERE age > 18 AND department = 'Engineering' GROUP BY department HAVING COUNT(*) > 10 ORDER BY age DESC;"

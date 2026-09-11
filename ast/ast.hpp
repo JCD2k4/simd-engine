@@ -41,13 +41,16 @@ struct BinaryExpr {
     Operator op;
     ASTNode left;
     ASTNode right;
+
+    BinaryExpr(Operator op, ASTNode left, ASTNode right)
+        : op(op), left(std::move(left)), right(std::move(right)) {}
 };
 
 struct SelectStatement {
     std::vector<std::unique_ptr<ASTNode>> select_list;
     std::vector<std::unique_ptr<ASTNode>> table_list;
-    std::optional<std::vector<BinaryExpr>> where;
+    std::optional<std::vector<BinaryExpr>> where; //should be an ASTNode vector
     std::vector<std::unique_ptr<ASTNode>> group_by;
-    std::optional<ASTNode> having;
-    std::vector<std::pair<ASTNode, bool>> order_by;
+    std::optional<std::vector<std::unique_ptr<ASTNode>>> having;
+    std::pair<ASTNode, bool> order_by; //just one ORDER BY for now, might make it a vector of multiple conditions in the future
 };
