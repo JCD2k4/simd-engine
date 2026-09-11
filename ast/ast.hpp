@@ -52,5 +52,5 @@ struct SelectStatement {
     std::optional<std::vector<BinaryExpr>> where; //should be an ASTNode vector
     std::vector<std::unique_ptr<ASTNode>> group_by;
     std::optional<std::vector<std::unique_ptr<ASTNode>>> having;
-    std::pair<ASTNode, bool> order_by; //just one ORDER BY for now, might make it a vector of multiple conditions in the future
+    std::optional<std::pair<ASTNode, bool>> order_by; //just one ORDER BY for now, might make it a vector of multiple conditions in the future
 };

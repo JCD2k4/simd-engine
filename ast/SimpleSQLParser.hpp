@@ -10,12 +10,12 @@ struct SimpleSQLParser {
     std::string stringLowerCase(std::string s);
     std::vector<std::string> tokenize(std::string query);
 
-    void SelectParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
-    void FromParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
-    void WhereParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
-    void GroupByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
-    void HavingParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
-    void OrderByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens);
+    void SelectParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
+    void FromParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
+    void WhereParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
+    void GroupByParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
+    void HavingParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
+    void OrderByParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens);
 
     std::unique_ptr<SelectStatement> Parse(std::vector<std::string>& tokens);
 };

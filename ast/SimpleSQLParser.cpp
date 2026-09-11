@@ -1,7 +1,7 @@
 #include "ast.hpp"
 #include "evaluator.hpp"
 #include "SimpleSQLParser.hpp"
-
+#include <algorithm>
 
 
 //Not an exhaustive list but this will do
@@ -58,7 +58,7 @@ std::vector<std::string> SimpleSQLParser::tokenize(std::string query){
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::SelectParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+void SimpleSQLParser::SelectParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
 
     std::unique_ptr<ASTNode> current_column;
     for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
@@ -74,13 +74,13 @@ void SimpleSQLParser::SelectParse(std::unique_ptr<SelectStatement>& statement, s
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::FromParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+void SimpleSQLParser::FromParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
 
     auto it = tokens.cbegin() + 1;
     std::unique_ptr<ASTNode> current_table;
     for (; it != tokens.cend(); ++it){
         current_table = std::make_unique<ASTNode>(StringExpr{*it});
-        statement->group_by.push_back(std::move(current_table));
+        statement->table_list.push_back(std::move(current_table));
     }
 
 }
@@ -91,7 +91,7 @@ void SimpleSQLParser::FromParse(std::unique_ptr<SelectStatement>& statement, std
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::WhereParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+void SimpleSQLParser::WhereParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
     //AS OF 9-10 THIS IS NOT DONE
     //This one will be a little different
 
@@ -129,12 +129,19 @@ void SimpleSQLParser::WhereParse(std::unique_ptr<SelectStatement>& statement, st
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::GroupByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+void SimpleSQLParser::GroupByParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
     
-    std::unique_ptr<ASTNode> current_column;
-    for (auto it = tokens.cbegin() + 1; it != tokens.cend(); ++it){
-        current_column = std::make_unique<ASTNode>(StringExpr{*it});
-        statement->select_list.push_back(std::move(current_column));
+    if (tokens.empty()) return;
+
+    size_t start_idx = 1;
+    if (tokens[0] == "GROUP BY" || tokens[0] == "group by") {
+        start_idx = 1;
+    } else if (tokens.size() >= 2 && stringLowerCase(tokens[0]) == "group") {
+        start_idx = 2;
+    }
+
+    for (size_t i = start_idx; i < tokens.size(); ++i) {
+        statement->group_by.push_back(std::make_unique<ASTNode>(StringExpr{tokens[i]}));
     }
 }
 
@@ -144,7 +151,7 @@ void SimpleSQLParser::GroupByParse(std::unique_ptr<SelectStatement>& statement, 
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::HavingParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
+void SimpleSQLParser::HavingParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
     
     //All boolean operations
     const std::unordered_map<std::string, Operator> c_op = {
@@ -181,11 +188,38 @@ void SimpleSQLParser::HavingParse(std::unique_ptr<SelectStatement>& statement, s
  * @param tokens Tokenized query
  * @return Void
  */
-void SimpleSQLParser::OrderByParse(std::unique_ptr<SelectStatement>& statement, std::vector<std::string>& tokens){
-    ASTNode column = StringExpr{tokens[1]};
-    bool asc = tokens[2] == "ASC";
-    
-    statement->order_by = { std::move(column), asc };;
+void SimpleSQLParser::OrderByParse(std::unique_ptr<SelectStatement>& statement, const std::vector<std::string>& tokens){
+    if (tokens.empty()) return;
+
+    size_t col_idx = 0;
+    size_t dir_idx = 0;
+
+    // Case 1: Merged token ["ORDER BY", "age", "ASC"]
+    if (tokens[0] == "ORDER BY" || tokens[0] == "order by") {
+        col_idx = 1;
+        dir_idx = 2;
+    } 
+    // Case 2: Separate tokens ["ORDER", "BY", "age", "ASC"]
+    else if (tokens.size() >= 2 && stringLowerCase(tokens[0]) == "order") {
+        col_idx = 2;
+        dir_idx = 3;
+    } 
+    else {
+        return;
+    }
+
+    if (tokens.size() <= col_idx) return; // Out of bounds guard
+
+    ASTNode column = StringExpr{tokens[col_idx]};
+    bool asc = true;
+
+    if (tokens.size() > dir_idx) {
+        if (stringLowerCase(tokens[dir_idx]) == "desc") {
+            asc = false;
+        }
+    }
+
+    statement->order_by = std::make_pair(std::move(column), asc);
 }
 
 /**
@@ -233,20 +267,25 @@ std::unique_ptr<SelectStatement> SimpleSQLParser::Parse(std::vector<std::string>
         i++;
     }*/
 
-    //SELECT CLAUSE
-    SelectParse(result, groups[0]);
+    // Dispatch clauses dynamically based on header token
+    for (const auto& group : groups) {
+        if (group.empty()) continue;
+        std::string header = stringLowerCase(group[0]);
 
-    //FROM CLAUSE
-    FromParse(result, groups[1]);
-    
-    //WHERE CLAUSE CHECK
-    WhereParse(result, groups[2]);
-
-    //GROUP BY CLAUSE CHECK
-    GroupByParse(result, groups[3]);
-
-    //ORDER BY CLAUSE CHECK;
-    GroupByParse(result, groups[4]);
+        if (header == "select") {
+            SelectParse(result, group);
+        } else if (header == "from") {
+            FromParse(result, group);
+        } else if (header == "where") {
+            WhereParse(result, group);
+        } else if (header == "group" || header == "group by") {
+            GroupByParse(result, group);
+        } else if (header == "having") {
+            HavingParse(result, group);
+        } else if (header == "order" || header == "order by") {
+            OrderByParse(result, group);
+        }
+    }
 
 
     return result;

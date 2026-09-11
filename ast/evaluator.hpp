@@ -78,8 +78,8 @@ struct ASTEvaluator {
 
         // Output ORDER BY if a target expression exists inside the variant
         std::cout << "\nORDER BY ";
-        evaluateNode(stmt.order_by.first);
-        std::cout << (stmt.order_by.second ? " ASC" : " DESC");
+        evaluateNode(stmt.order_by->first);
+        std::cout << (stmt.order_by->second ? " ASC" : " DESC");
         std::cout << "\n";
     }
 
